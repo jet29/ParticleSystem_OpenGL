@@ -1,3 +1,9 @@
 #visual studio meta data
 
 .vs
+
+#x64 files
+
+/ParticleSystem/x64
+/ParticleSystem/Debug
+/ParticleSystem/.vs

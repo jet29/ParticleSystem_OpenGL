@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 
 #include <glad/glad.h>
 // GLFW
@@ -8,6 +9,8 @@
 #include <glm/glm.hpp>
 
 #include "Shader.h"
+#include "particle_system/particleSystem.h"
+
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -20,6 +23,9 @@ using namespace std;
 const GLint WIDTH = 800, HEIGHT = 600;
 
 GLFWwindow* window;
+
+//Shader
+Shader* shader;
 
 // Window current width
 GLuint windowWidth = 800;
@@ -34,13 +40,16 @@ int textureWidth, textureHeight, numberOfChannels;
 float currentTime = 0;
 float lastTime = 0;
 
-// Camera starting position
-glm::vec3 position = glm::vec3(0, 0, 1);
+// Particle System
+ParticleSystem *particleSystem;
 
-// Index (GPU) of the geometry buffer
+// Camera starting position
+glm::vec3 position = glm::vec3(0, 0, 50);
+
+// Plane Structures
 unsigned int VBO;
-// Index (GPU) vertex array object
 unsigned int VAO;
+
 
 void buildGeometry() {
 	// Quad for debug purposes:
@@ -67,6 +76,7 @@ void buildGeometry() {
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 }
+
 
 void resize(GLFWwindow* window, int width, int height)
 {
@@ -186,12 +196,13 @@ bool init() {
 	// Initialize geometry for GPU
 	buildGeometry();
 
-	// Load texture
 	texture = loadTexture("assets/textures/texture.jpg");
+		
+	// Create particle system
+	particleSystem = new ParticleSystem(VAO, VBO, glm::vec3(0,0,0));
 
-	cout << "texture size" << endl;
-	cout << textureWidth << ", " << textureHeight << endl;
-
+	// Load texture
+	
 	return true;
 }
 
@@ -202,8 +213,6 @@ void processKeyboardInput(GLFWwindow* window)
 		// Tells glfw to close the window as soon as possible
 		glfwSetWindowShouldClose(window, true);
 
-	lastTime = currentTime;
-	currentTime = glfwGetTime();
 
 	float deltaTime = currentTime - lastTime;
 
@@ -232,8 +241,34 @@ void processKeyboardInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
 		position += glm::vec3(0, 0, 1) * deltaTime * 4.0f;
 	}
+}
+
+void render() {
+
+	// Render
+		// Clear the colorbuffer
+	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
+	//SETUP MVP
+	glm::vec3 direction = glm::vec3(0, 0, -1);
+	glm::vec3 up = glm::vec3(0, 1, 0);
+
+	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)windowWidth / (float)windowHeight, .5f, 1000.0f);
+	glm::mat4 view = glm::lookAt(
+		position, // Camera is at (4,3,3), in world space
+		position + direction, // and looks at the origin
+		up  // Head is up (set to 0,-1,0 to look upside-down) 
+	);
+
+
+	float deltaTime = currentTime - lastTime;
+
+	particleSystem->update(deltaTime);
+
+	particleSystem->draw(shader, texture, view, projection);
+	
 }
 
 
@@ -243,54 +278,19 @@ int main()
 {
 	init();
 
-	Shader* shader = new Shader("src/shaders/basic.vert", "src/shaders/basic.frag");
+	shader = new Shader("src/shaders/basic.vert", "src/shaders/basic.frag");
 
 	// Game loop
 	while (!glfwWindowShouldClose(window))
 	{
+		
+		lastTime = currentTime;
+		currentTime = glfwGetTime();
 
 		processKeyboardInput(window);
 
-		// Render
-		// Clear the colorbuffer
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-		//SETUP MVP
-		glm::vec3 direction = glm::vec3(0, 0, -1);
-		glm::vec3 up = glm::vec3(0, 1, 0);
-
-		glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)windowWidth / (float)windowHeight, .5f, 1000.0f);
-		glm::mat4 view = glm::lookAt(
-			position, // Camera is at (4,3,3), in world space
-			position + direction, // and looks at the origin
-			up  // Head is up (set to 0,-1,0 to look upside-down) 
-		);
-
-		//difference of heigth for width
-		float aspectRatio = (float)textureHeight / (float)textureWidth;
-
-		//cout << "aspect ratio: " << aspectRatio << endl;
-
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::scale(model, glm::vec3(1, aspectRatio, 1));
-
-		shader->use();
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture);
-		shader->setInt("image", 0);
-
-		shader->setMat4("model", model);
-		shader->setMat4("view", view);
-		shader->setMat4("projection", projection);
-
-		// Binds the vertex array to be drawn
-		glBindVertexArray(VAO);
-		// Render triangle's geometry
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		glBindVertexArray(0);
+		//render scene
+		render();
 
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
@@ -303,6 +303,7 @@ int main()
 	glfwTerminate();
 
 	delete shader;
+	delete particleSystem;
 
 	return EXIT_SUCCESS;
 }

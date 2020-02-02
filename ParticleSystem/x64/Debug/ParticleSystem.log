@@ -1,3 +1,0 @@
-﻿  main.cpp
-C:\Users\AlchenTheCat\Documents\PROGRAMMING\OpenGL\Particle_System\ParticleSystem\src\main.cpp(206,27): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-  ParticleSystem.vcxproj -> C:\Users\AlchenTheCat\Documents\PROGRAMMING\OpenGL\Particle_System\ParticleSystem\x64\Debug\ParticleSystem.exe
